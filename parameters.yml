@@ -1,0 +1,10 @@
+i_name: "kush Instance"
+key: "newkey" 
+i_type: "t2.micro"
+ami_id: "ami-08f63db601b82ff5f" 
+sg: "sg-01a26d3db794b83f8" 
+subnet: "subnet-3bb8bd53"
+area: "ap-south-1"
+
+
+inventory: /home/ec2-user/inventory.txt
