@@ -21,7 +21,7 @@ Updatting Soon....
 
 # Impementing Dynamic Inventory
 
-## Present in direcory aws.
+## Present in directory aws.
 
 created playbook for this:
 
