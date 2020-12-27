@@ -6,7 +6,7 @@
   vars_files:
           - /home/ec2-user/secret.yml    # my credential 
           - parameters.yml
-          # - credential.safe 
+          # - credential.safe.yml 
   tasks:
           - pip:
                   name: boto3

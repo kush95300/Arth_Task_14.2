@@ -9,6 +9,20 @@ of Webserver could be done inside that Container.
 
 ## Solution
 
+<b> Task 14.2 Solution </b>
+
+Updatting Soon....
+
+Updatting Soon....
+
+
+
+## EXTRA WORK:
+
+# Impementing Dynamic Inventory
+
+## Present in direcory aws.
+
 created playbook for this:
 
 - aws_instance_with_webserver.yml : PLAYBOOK to create one instance
