@@ -11,11 +11,22 @@ of Webserver could be done inside that Container.
 
 <b> Task 14.2 Solution </b>
 
-Updatting Soon....
 
-Updatting Soon....
+created playbook for this:
+
+- docker_with_webserver_using_dynamic_inventory.yml   :    PLAYBOOK to create one instance
+- delete_docker_infra.yml                             :    PLAYBOOK to delete above infrastructre.
+- parameters.yml                                      :    CONTAINS parameters
 
 
+
+<b>
+Command : ansible-playbook docker_with_webserver_using_dynamic_inventory.yml  
+</b>
+
+#NOTE: System should have pip and ansible before running this playbook. 
+
+==================================================================================================================================================================
 
 ## EXTRA WORK:
 

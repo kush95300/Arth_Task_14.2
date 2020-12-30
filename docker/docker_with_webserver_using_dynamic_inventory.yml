@@ -1,0 +1,120 @@
+- hosts: localhost
+  become: yes
+  become_user: root
+  vars_prompt:
+          - name: name
+            prompt: "Name batao"
+            private: no
+          - name: port_no
+            prompt: "Port batao"
+            private: no
+  vars:
+          password: "kush"  
+  tasks:
+  - name: "configuring yum "
+    yum_repository:
+      name: "docker-repo"
+      description: "contain docker versions"
+      baseurl: https://download.docker.com/linux/centos/7/x86_64/stable/
+      gpgcheck: 0
+  - block:
+       - name: "Check Docker"
+         shell: "docker"
+         changed_when: false
+    rescue:
+       - name: "installing  docker "
+         command: "yum install docker -y" #"yum install docker-ce -y --nobest"
+      
+  - name: "installing docker SDK"
+    pip:
+      name: "docker"
+      state: present
+
+  - name: "starting services"
+    service:
+      name: "docker.service"
+      state: started
+      enabled: yes
+
+  - name: "pulling docker images"
+    docker_image:
+      name: "httpd"
+      source: pull
+
+  - name: "create docker container and configure websever "
+    docker_container:
+      name: "{{ name }}"
+      image: "centos"
+      ports: "{{ port_no }}:80"
+      tty: yes
+      interactive: yes
+      volumes: "/workspace/docker:/usr/local/apache/htdocs/"
+    register: x
+
+  - name: "Debugging Instance IP"
+    debug:
+          var: x.ansible_facts.docker_container.NetworkSettings.IPAddress
+  - block:
+          - name: "update group" 
+            shell: "grep 'auto_docker' /home/ec2-user/inventory.txt "
+            changed_when: false
+    rescue:
+            - name: "Writing Tag"
+              shell: " echo -e '\n[auto_docker]' | cat >> /home/ec2-user/inventory.txt" 
+  - name: "Writing IPs"
+    lineinfile:
+          dest: /home/ec2-user/inventory.txt
+          regexp: "^[auto_docker]"
+          line: "{{ x.ansible_facts.docker_container.NetworkSettings.IPAddress }} ansible_ssh_user=root ansible_ssh_pass={{ password }} ansible_connection=ssh"
+
+  - name: "Upgrading Docker Container"
+    shell: "docker exec {{ name }} /usr/bin/yum  upgrade -y"
+
+  - name: "Installing ssh in container"
+    shell: "docker exec {{ name }} /usr/bin/yum  install openssh-server openssh-clients initscripts passwd net-tools -y"
+
+  - name: "Creating ssh hosts"
+    shell: "docker exec {{ name }} /usr/bin/ssh-keygen  -A"
+
+  - name: "Creating ssh keys"
+    shell: "docker exec {{ name }} /usr/bin/ssh-keygen  -q -t rsa -N '' -f ~/.ssh/id_rsa <<<y 2>&1 >/dev/null"
+  
+#  - name: "Creating ssh hosts"
+#    shell: "docker exec {{ name }} /usr/bin/ssh-keygen  -R {{ x.ansible_facts.docker_container.NetworkSettings.IPAddress }}"
+  
+  - name: "Setting Passwd ( STEP - 1 )"
+    copy:
+            dest: ~/cmd.file
+            content: "echo  '{{ password }}' | passwd --stdin root"
+
+  - name: "Setting Passwd ( STEP - 2 )"
+    shell: "docker cp ~/cmd.file {{ name }}:/root"
+
+  - name: "Setting Passwd ( STEP - 3 )"
+    shell: "docker exec {{ name }} /usr/bin/bash /root/cmd.file"
+
+  - name: "SSH Service Start"
+    shell: "docker exec {{ name }} /usr/sbin/sshd"
+  
+  - name: "SSH Service Enabled"
+    shell: "docker exec {{ name }} echo '/usr/sbin/sshd' | cat >> ~/.bashrc"
+  
+  - meta: refresh_inventory
+
+
+- name: "Installing Webserver"
+  hosts: auto_docker
+  tasks:
+          - package:
+                  name: "httpd"
+          - copy:
+                  dest: /var/www/html/index.html
+                  content: "<h1><b><center>Launched in Docker Container by kaushal Soni</center> </b></h1>"
+          - block:
+                  - name: "Webserver Started"
+                    service:
+                        name: "httpd"
+                        state: startedi
+            rescue:
+                    - shell: "/usr/sbin/httpd"
+
