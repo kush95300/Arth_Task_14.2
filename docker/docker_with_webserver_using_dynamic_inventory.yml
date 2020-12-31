@@ -1,15 +1,8 @@
 - hosts: localhost
   become: yes
   become_user: root
-  vars_prompt:
-          - name: name
-            prompt: "Name batao"
-            private: no
-          - name: port_no
-            prompt: "Port batao"
-            private: no
-  vars:
-          password: "kush"  
+  vars_files:
+          - "./parameter.yml"
   tasks:
   - name: "configuring yum "
     yum_repository:
@@ -54,6 +47,29 @@
   - name: "Debugging Instance IP"
     debug:
           var: x.ansible_facts.docker_container.NetworkSettings.IPAddress
+  - name: "Deleting Prior host details from known_hosts"
+    lineinfile:
+            dest: "{{ item }}"
+            state: absent
+            regexp: "^{{ x.ansible_facts.docker_container.NetworkSettings.IPAddress }}"
+    when: "{{ x }} is defined"
+    loop:
+            - ~/.ssh/known_hosts
+            - ~/.ssh/known_hosts.old
+    ignore_errors: true
+    
+  - name: "Deleting Prior host details from known_hosts"
+    lineinfile:
+             dest: "{{ item }}"
+             state: absent
+             regexp: "^{{ x.ansible_facts.docker_container.NetworkSettings.IPAddress }}"
+    become: no
+    when: "{{ x }} is defined"
+    ignore_errors: true
+    loop:
+     - ~/.ssh/known_hosts
+     - ~/.ssh/known_hosts.old
+  
   - block:
           - name: "update group" 
             shell: "grep 'auto_docker' /home/ec2-user/inventory.txt "
@@ -79,9 +95,6 @@
   - name: "Creating ssh keys"
     shell: "docker exec {{ name }} /usr/bin/ssh-keygen  -q -t rsa -N '' -f ~/.ssh/id_rsa <<<y 2>&1 >/dev/null"
   
-#  - name: "Creating ssh hosts"
-#    shell: "docker exec {{ name }} /usr/bin/ssh-keygen  -R {{ x.ansible_facts.docker_container.NetworkSettings.IPAddress }}"
-  
   - name: "Setting Passwd ( STEP - 1 )"
     copy:
             dest: ~/cmd.file
@@ -93,17 +106,29 @@
   - name: "Setting Passwd ( STEP - 3 )"
     shell: "docker exec {{ name }} /usr/bin/bash /root/cmd.file"
 
+
   - name: "SSH Service Start"
     shell: "docker exec {{ name }} /usr/sbin/sshd"
   
   - name: "SSH Service Enabled"
     shell: "docker exec {{ name }} echo '/usr/sbin/sshd' | cat >> ~/.bashrc"
   
+  - name: "setting host"
+    debug:
+            msg: "docker_host: {{  x.ansible_facts.docker_container.NetworkSettings.IPAddress }}"
+    register: host
+  - name: "Creating Hostfile"
+    copy:
+            dest: "./hostfile.yml"
+            content: "{{ host.msg }}"
+    become: no
   - meta: refresh_inventory
 
 
 - name: "Installing Webserver"
-  hosts: auto_docker
+  hosts: "{{ docker_host }}"
+  vars_files:
+          - "./hostfile.yml"
   tasks:
           - package:
                   name: "httpd"
@@ -117,4 +142,24 @@
                         state: startedi
             rescue:
                     - shell: "/usr/sbin/httpd"
+ 
+- name: "Deleting Intermediate files"
+  hosts: localhost
+  become: yes
+  become_user: root
+  vars_files:
+          - "./parameter.yml"
+  tasks:
+          - file:
+                  dest: "./hostfile.yml"
+                  state: absent
+            become: no
+            ignore_errors: true
 
+          - name: "Deleting Passwd file"
+            shell: "docker exec {{ name }} rm -f /root/cmd.file"
+            ignore_errors: true
+          - file:
+                  dest: "/root/cmd.file"
+                  state: absent
+            ignore_errors: true

@@ -1,0 +1,3 @@
+name: "docker_container"
+port_no: 5050
+password: "yourpass"
